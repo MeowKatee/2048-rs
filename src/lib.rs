@@ -1,11 +1,46 @@
 use std::num::NonZeroU8;
 
+use rand::rngs::ThreadRng;
+use rand::seq::SliceRandom;
+use rand::Rng;
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Board {
     board: [[Option<NonZeroU8>; 4]; 4],
 }
 
 impl Board {
+    pub fn new(rng: &mut ThreadRng) -> Self {
+        let mut initial_board = [[None; 4]; 4];
+        let indice = (0..4)
+            .map(|i| (0..4).map(move |j| (i, j)))
+            .flatten()
+            .collect::<Vec<_>>();
+        let posi = indice.choose_multiple(rng, 2);
+        posi.for_each(|&(x, y)| initial_board[x][y] = NonZeroU8::new(1));
+        initial_board.into()
+    }
+
+    pub fn play(&mut self, direction: Arrow, rng: &mut ThreadRng) -> bool {
+        self.merge(direction);
+        self.gen_num(rng);
+        self.is_lost()
+    }
+
+    pub fn gen_num(&mut self, rng: &mut ThreadRng) {
+        let &(x, y) = (0..4)
+            .map(|i| (0..4).map(move |j| (i, j)))
+            .flatten()
+            .collect::<Vec<_>>()
+            .choose(rng)
+            .unwrap();
+        self.board[x][y] = if rng.gen_ratio(1, 10) {
+            NonZeroU8::new(2)
+        } else {
+            NonZeroU8::new(1)
+        };
+    }
+
     pub fn is_lost(&self) -> bool {
         self.board
             .iter()
@@ -14,7 +49,9 @@ impl Board {
             .all(Option::is_some)
             && !self.is_mergable()
     }
+}
 
+impl Board {
     fn is_mergable(&self) -> bool {
         let mergable_row = || {
             (0..4).any(|x| {
@@ -80,7 +117,7 @@ impl Board {
         }
     }
 
-    pub fn merge(&mut self, direction: Arrow) {
+    fn merge(&mut self, direction: Arrow) {
         match direction {
             Arrow::Up => self.scan(direction, |above, below| {
                 if above.is_some() && above == below {
@@ -196,33 +233,96 @@ mod tests {
 
     #[test]
     fn test_is_lost() {
-        let lost_boards = [
+        let lost_boards = [[
             [
-                [NonZeroU8::new(1), NonZeroU8::new(2),NonZeroU8::new(1),NonZeroU8::new(2),],
-                [NonZeroU8::new(2), NonZeroU8::new(1),NonZeroU8::new(2),NonZeroU8::new(1),],
-                [NonZeroU8::new(1), NonZeroU8::new(2),NonZeroU8::new(1),NonZeroU8::new(2),],
-                [NonZeroU8::new(2), NonZeroU8::new(1),NonZeroU8::new(2),NonZeroU8::new(1),],
+                NonZeroU8::new(1),
+                NonZeroU8::new(2),
+                NonZeroU8::new(1),
+                NonZeroU8::new(2),
             ],
-        ];
+            [
+                NonZeroU8::new(2),
+                NonZeroU8::new(1),
+                NonZeroU8::new(2),
+                NonZeroU8::new(1),
+            ],
+            [
+                NonZeroU8::new(1),
+                NonZeroU8::new(2),
+                NonZeroU8::new(1),
+                NonZeroU8::new(2),
+            ],
+            [
+                NonZeroU8::new(2),
+                NonZeroU8::new(1),
+                NonZeroU8::new(2),
+                NonZeroU8::new(1),
+            ],
+        ]];
 
         let not_yet_losts = [
             [
-                [NonZeroU8::new(1), NonZeroU8::new(2),NonZeroU8::new(1),NonZeroU8::new(2),],
-                [NonZeroU8::new(2), NonZeroU8::new(1),NonZeroU8::new(2),NonZeroU8::new(1),],
-                [NonZeroU8::new(1), NonZeroU8::new(2),NonZeroU8::new(1),NonZeroU8::new(2),],
-                [NonZeroU8::new(2), NonZeroU8::new(1),NonZeroU8::new(2),None],
+                [
+                    NonZeroU8::new(1),
+                    NonZeroU8::new(2),
+                    NonZeroU8::new(1),
+                    NonZeroU8::new(2),
+                ],
+                [
+                    NonZeroU8::new(2),
+                    NonZeroU8::new(1),
+                    NonZeroU8::new(2),
+                    NonZeroU8::new(1),
+                ],
+                [
+                    NonZeroU8::new(1),
+                    NonZeroU8::new(2),
+                    NonZeroU8::new(1),
+                    NonZeroU8::new(2),
+                ],
+                [
+                    NonZeroU8::new(2),
+                    NonZeroU8::new(1),
+                    NonZeroU8::new(2),
+                    None,
+                ],
             ],
             [
-
-                [NonZeroU8::new(1), NonZeroU8::new(2),NonZeroU8::new(1),NonZeroU8::new(2),],
-                [NonZeroU8::new(3), NonZeroU8::new(1),NonZeroU8::new(2),NonZeroU8::new(1),],
-                [NonZeroU8::new(2), NonZeroU8::new(2),NonZeroU8::new(1),NonZeroU8::new(2),],
-                [NonZeroU8::new(2), NonZeroU8::new(1),NonZeroU8::new(2),NonZeroU8::new(1),],
-            ]
+                [
+                    NonZeroU8::new(1),
+                    NonZeroU8::new(2),
+                    NonZeroU8::new(1),
+                    NonZeroU8::new(2),
+                ],
+                [
+                    NonZeroU8::new(3),
+                    NonZeroU8::new(1),
+                    NonZeroU8::new(2),
+                    NonZeroU8::new(1),
+                ],
+                [
+                    NonZeroU8::new(2),
+                    NonZeroU8::new(2),
+                    NonZeroU8::new(1),
+                    NonZeroU8::new(2),
+                ],
+                [
+                    NonZeroU8::new(2),
+                    NonZeroU8::new(1),
+                    NonZeroU8::new(2),
+                    NonZeroU8::new(1),
+                ],
+            ],
         ];
 
-        assert!(lost_boards.into_iter().map(Board::from).all(|board| board.is_lost()));
-        assert!(not_yet_losts.into_iter().map(Board::from).all(|board| !board.is_lost()));
+        assert!(lost_boards
+            .into_iter()
+            .map(Board::from)
+            .all(|board| board.is_lost()));
+        assert!(not_yet_losts
+            .into_iter()
+            .map(Board::from)
+            .all(|board| !board.is_lost()));
     }
 }
 
