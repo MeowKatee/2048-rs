@@ -21,10 +21,14 @@ impl Board {
         initial_board.into()
     }
 
-    pub fn play(&mut self, direction: Arrow, rng: &mut ThreadRng) -> bool {
+    pub fn play_changed(&mut self, direction: Arrow, rng: &mut ThreadRng) -> bool {
+        let prev_state = self.clone();
         self.merge(direction);
-        self.gen_num(rng);
-        self.is_lost()
+        let changed = prev_state != *self;
+        if changed {
+            self.gen_num(rng);
+        }
+        changed
     }
 
     pub fn gen_num(&mut self, rng: &mut ThreadRng) -> bool {
@@ -57,34 +61,14 @@ impl Board {
             .all(Option::is_some)
     }
 
-    pub fn is_lost(&self) -> bool {
-        self.is_full() && !self.is_mergable()
+    pub fn is_lost(&self, rng: &mut ThreadRng) -> bool {
+        Arrow::iter()
+            .into_iter()
+            .all(|op| !self.clone().play_changed(op, rng))
     }
 }
 
 impl Board {
-    fn is_mergable(&self) -> bool {
-        let mergable_row = || {
-            (0..4).any(|x| {
-                (0..3).map(|y| (x, y)).any(|(x, y)| {
-                    let left = self.board[x][y];
-                    let right = self.board[x][y + 1];
-                    left.is_some() && left == right
-                })
-            })
-        };
-        let mergable_col = || {
-            (0..3).any(|x| {
-                (0..4).map(|y| (x, y)).any(|(x, y)| {
-                    let above = self.board[x][y];
-                    let below = self.board[x + 1][y];
-                    above.is_some() && above == below
-                })
-            })
-        };
-        mergable_row() || mergable_col()
-    }
-
     fn scan(
         &mut self,
         direction: Arrow,
@@ -204,48 +188,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_mergable() {
-        let mergable_boards = [
-            [
-                [None; 4],
-                [None; 4],
-                [None, None, NonZeroU8::new(3), None],
-                [None, None, NonZeroU8::new(3), None],
-            ],
-            [
-                [None; 4],
-                [None; 4],
-                [None; 4],
-                [None, None, NonZeroU8::new(1), NonZeroU8::new(1)],
-            ],
-        ];
-
-        let unmergable_boards = [
-            [
-                [None; 4],
-                [None; 4],
-                [None, None, NonZeroU8::new(2), None],
-                [None, None, NonZeroU8::new(3), None],
-            ],
-            [
-                [None; 4],
-                [None; 4],
-                [None; 4],
-                [None, None, NonZeroU8::new(2), NonZeroU8::new(1)],
-            ],
-            [[None; 4], [None; 4], [None; 4], [None; 4]],
-        ];
-        assert!(mergable_boards
-            .into_iter()
-            .all(|board| Board::from(board).is_mergable()));
-
-        assert!(unmergable_boards
-            .into_iter()
-            .all(|board| !Board::from(board).is_mergable()));
-    }
-
-    #[test]
     fn test_is_lost() {
+        let mut rng = rand::thread_rng();
         let lost_boards = [[
             [
                 NonZeroU8::new(1),
@@ -328,14 +272,14 @@ mod tests {
             ],
         ];
 
-        assert!(lost_boards
+        lost_boards
             .into_iter()
             .map(Board::from)
-            .all(|board| board.is_lost()));
-        assert!(not_yet_losts
+            .for_each(|board| assert!(board.is_lost(&mut rng)));
+        not_yet_losts
             .into_iter()
             .map(Board::from)
-            .all(|board| !board.is_lost()));
+            .for_each(|board| assert!(!board.is_lost(&mut rng)));
     }
 
     #[test]
@@ -366,14 +310,29 @@ mod tests {
                     [None, None, NonZeroU8::new(5), NonZeroU8::new(5)],
                 ],
             ),
+            (
+                [
+                    [None; 4],
+                    [None; 4],
+                    [None; 4],
+                    [NonZeroU8::new(1), None, None, NonZeroU8::new(1)],
+                ],
+                Arrow::Left,
+                [
+                    [None; 4],
+                    [None; 4],
+                    [None; 4],
+                    [NonZeroU8::new(2), None, None, None],
+                ],
+            ),
         ];
-        assert!(pairs
+        pairs
             .into_iter()
             .map(|(left, op, right)| (Board::from(left), op, Board::from(right)))
-            .all(|(mut left, op, right)| {
+            .for_each(|(mut left, op, right)| {
                 left.merge(op);
-                left == right
-            }));
+                assert!(left == right)
+            });
     }
 }
 
@@ -383,4 +342,10 @@ pub enum Arrow {
     Down,
     Left,
     Right,
+}
+
+impl Arrow {
+    fn iter() -> [Self; 4] {
+        [Arrow::Up, Arrow::Down, Arrow::Left, Arrow::Right]
+    }
 }
