@@ -27,27 +27,38 @@ impl Board {
         self.is_lost()
     }
 
-    pub fn gen_num(&mut self, rng: &mut ThreadRng) {
+    pub fn gen_num(&mut self, rng: &mut ThreadRng) -> bool {
+        if self.is_full() {
+            return false;
+        }
+
         let &(x, y) = (0..4)
             .map(|i| (0..4).map(move |j| (i, j)))
             .flatten()
+            .filter(|&(x, y)| self.board[x][y].is_none())
             .collect::<Vec<_>>()
             .choose(rng)
             .unwrap();
+
         self.board[x][y] = if rng.gen_ratio(1, 10) {
             NonZeroU8::new(2)
         } else {
             NonZeroU8::new(1)
         };
+
+        true
     }
 
-    pub fn is_lost(&self) -> bool {
+    fn is_full(&self) -> bool {
         self.board
             .iter()
             .map(|row| row.iter())
             .flatten()
             .all(Option::is_some)
-            && !self.is_mergable()
+    }
+
+    pub fn is_lost(&self) -> bool {
+        self.is_full() && !self.is_mergable()
     }
 }
 
@@ -118,6 +129,8 @@ impl Board {
     }
 
     fn merge(&mut self, direction: Arrow) {
+        self.squash(direction);
+
         match direction {
             Arrow::Up => self.scan(direction, |above, below| {
                 if above.is_some() && above == below {
@@ -323,6 +336,44 @@ mod tests {
             .into_iter()
             .map(Board::from)
             .all(|board| !board.is_lost()));
+    }
+
+    #[test]
+    fn test_merge_squash() {
+        let pairs = [
+            (
+                [
+                    [None, None, None, NonZeroU8::new(1)],
+                    [None; 4],
+                    [None, None, NonZeroU8::new(3), None],
+                    [None, None, NonZeroU8::new(3), NonZeroU8::new(1)],
+                ],
+                Arrow::Down,
+                [
+                    [None; 4],
+                    [None; 4],
+                    [None; 4],
+                    [None, None, NonZeroU8::new(4), NonZeroU8::new(2)],
+                ],
+            ),
+            (
+                [[None; 4], [None; 4], [None; 4], [NonZeroU8::new(4); 4]],
+                Arrow::Right,
+                [
+                    [None; 4],
+                    [None; 4],
+                    [None; 4],
+                    [None, None, NonZeroU8::new(5), NonZeroU8::new(5)],
+                ],
+            ),
+        ];
+        assert!(pairs
+            .into_iter()
+            .map(|(left, op, right)| (Board::from(left), op, Board::from(right)))
+            .all(|(mut left, op, right)| {
+                left.merge(op);
+                left == right
+            }));
     }
 }
 
