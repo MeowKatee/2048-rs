@@ -1,8 +1,11 @@
 use std::num::NonZeroU8;
 
+use crossterm::event::KeyCode;
 use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use rand::Rng;
+use ratatui::style::{Color, Style};
+use ratatui::widgets::{Cell, Row, Table};
 
 mod tests;
 
@@ -105,7 +108,7 @@ impl Board {
                 })
             }),
             Arrow::Right => (0..4).for_each(|x| {
-                (0..3).rev().map(|y| (x, y)).for_each(|(x, y)| {
+                (0..3).map(|y| (x, y)).for_each(|(x, y)| {
                     let (left, right) = self.board[x].split_at_mut(y + 1);
                     let (left, right) = (left.last_mut().unwrap(), right.first_mut().unwrap());
                     op(left, right);
@@ -197,4 +200,48 @@ impl Arrow {
     fn iter() -> [Self; 4] {
         [Arrow::Up, Arrow::Down, Arrow::Left, Arrow::Right]
     }
+}
+
+impl TryFrom<KeyCode> for Arrow {
+    type Error = ();
+
+    fn try_from(value: KeyCode) -> Result<Self, Self::Error> {
+        Ok(match value {
+            KeyCode::Up => Arrow::Up,
+            KeyCode::Down => Arrow::Down,
+            KeyCode::Left => Arrow::Left,
+            KeyCode::Right => Arrow::Right,
+            _ => Err(())?,
+        })
+    }
+}
+
+fn color_of(state: NonZeroU8) -> Color {
+    match state.get() % 10 {
+        0 => Color::Yellow,
+        1 => Color::Green,
+        2 => Color::Blue,
+        3 => Color::Red,
+        4 => Color::LightYellow,
+        5 => Color::LightGreen,
+        6 => Color::LightBlue,
+        7 => Color::LightRed,
+        8 => Color::Magenta,
+        9 => Color::White,
+        _ => unreachable!(),
+    }
+}
+
+impl From<Board> for Table<'static> {
+    fn from(value: Board) -> Self {
+        Table::new(value.board.map(|row| Row::new(row.map(cell_to_widget))))
+    }
+}
+
+fn cell_to_widget(cell: Option<NonZeroU8>) -> Cell<'static> {
+    Cell::from(cell.map(|i| i.to_string()).unwrap_or_default()).style(
+        Style::new()
+            .bg(Color::Black)
+            .fg(cell.map(color_of).unwrap_or(Color::Black)),
+    )
 }
