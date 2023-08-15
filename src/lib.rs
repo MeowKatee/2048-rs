@@ -89,7 +89,7 @@ impl Board {
         mut op: impl FnMut(&mut Option<NonZeroU8>, &mut Option<NonZeroU8>),
     ) {
         match direction {
-            Arrow::Up | Arrow::Down => (0..3).for_each(|x| {
+            Arrow::Up => (0..3).for_each(|x| {
                 (0..4).map(|y| (x, y)).for_each(|(x, y)| {
                     let (above, below) = self.board.split_at_mut(x + 1);
                     let (above, below) = (
@@ -99,7 +99,24 @@ impl Board {
                     op(above, below);
                 })
             }),
-            Arrow::Left | Arrow::Right => (0..4).for_each(|x| {
+            Arrow::Down => (0..3).rev().for_each(|x| {
+                (0..4).map(|y| (x, y)).for_each(|(x, y)| {
+                    let (above, below) = self.board.split_at_mut(x + 1);
+                    let (above, below) = (
+                        &mut above.last_mut().unwrap()[y],
+                        &mut below.first_mut().unwrap()[y],
+                    );
+                    op(above, below);
+                })
+            }),
+            Arrow::Left => (0..4).for_each(|x| {
+                (0..3).map(|y| (x, y)).for_each(|(x, y)| {
+                    let (left, right) = self.board[x].split_at_mut(y + 1);
+                    let (left, right) = (left.last_mut().unwrap(), right.first_mut().unwrap());
+                    op(left, right);
+                })
+            }),
+            Arrow::Right => (0..4).for_each(|x| {
                 (0..3).rev().map(|y| (x, y)).for_each(|(x, y)| {
                     let (left, right) = self.board[x].split_at_mut(y + 1);
                     let (left, right) = (left.last_mut().unwrap(), right.first_mut().unwrap());
@@ -159,6 +176,15 @@ impl From<[[Option<NonZeroU8>; 4]; 4]> for Board {
     fn from(value: [[Option<NonZeroU8>; 4]; 4]) -> Self {
         Self {
             board: value,
+            score: 0,
+        }
+    }
+}
+
+impl From<[[u8; 4]; 4]> for Board {
+    fn from(value: [[u8; 4]; 4]) -> Self {
+        Board {
+            board: value.map(|row| row.map(|pow| NonZeroU8::new(pow))),
             score: 0,
         }
     }

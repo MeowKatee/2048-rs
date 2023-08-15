@@ -98,69 +98,76 @@ mod tests {
 
     #[test]
     fn test_merge_squash() {
+        #[rustfmt::skip]
         let pairs = [
             (
                 [
-                    [None, None, None, NonZeroU8::new(1)],
-                    [None; 4],
-                    [None, None, NonZeroU8::new(3), None],
-                    [None, None, NonZeroU8::new(3), NonZeroU8::new(1)],
+                    [0, 0, 0, 1],
+                    [0, 0, 3, 0],
+                    [0, 0, 3, 0],
+                    [0, 0, 3, 1]
                 ],
                 Arrow::Down,
                 [
-                    [None; 4],
-                    [None; 4],
-                    [None; 4],
-                    [None, None, NonZeroU8::new(4), NonZeroU8::new(2)],
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 0],
+                    [0, 0, 3, 0],
+                    [0, 0, 4, 2]
                 ],
             ),
             (
-                [[None; 4], [None; 4], [None; 4], [NonZeroU8::new(4); 4]],
+                [
+                    [0;4],
+                    [0;4],
+                    [0;4],
+                    [4;4],
+                ],
                 Arrow::Right,
                 [
-                    [None; 4],
-                    [None; 4],
-                    [None; 4],
-                    [None, None, NonZeroU8::new(5), NonZeroU8::new(5)],
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 0],
+                    [0, 0, 5, 5],
                 ],
             ),
             (
                 [
-                    [None; 4],
-                    [None; 4],
-                    [None; 4],
-                    [NonZeroU8::new(1), None, None, NonZeroU8::new(1)],
+                    [0,0,0,0],
+                    [0,0,0,0],
+                    [0,0,0,0],
+                    [1,0,1,1],
                 ],
                 Arrow::Left,
                 [
-                    [None; 4],
-                    [None; 4],
-                    [None; 4],
-                    [NonZeroU8::new(2), None, None, None],
+                    [0,0,0,0],
+                    [0,0,0,0],
+                    [0,0,0,0],
+                    [2,1,0,0],
                 ],
             ),
             (
                 [
-                    [None; 4],
-                    [None; 4],
-                    [None; 4],
-                    [NonZeroU8::new(1), NonZeroU8::new(1), NonZeroU8::new(1), None],
+                    [0,0,0,0],
+                    [0,0,0,0],
+                    [0,0,0,0],
+                    [1,0,1,1],
                 ],
-                Arrow::Left,
+                Arrow::Right,
                 [
-                    [None; 4],
-                    [None; 4],
-                    [None; 4],
-                    [NonZeroU8::new(2), NonZeroU8::new(1), None, None],
+                    [0,0,0,0],
+                    [0,0,0,0],
+                    [0,0,0,0],
+                    [0,0,1,2],
                 ],
             ),
         ];
         pairs
             .into_iter()
-            .map(|(left, op, right)| (Board::from(left), op, Board::from(right)))
-            .for_each(|(mut left, op, right)| {
+            .enumerate()
+            .map(|(i, (left, op, right))| (i, Board::from(left), op, Board::from(right)))
+            .for_each(|(i, mut left, op, right)| {
                 left.merge(op);
-                assert!(left.board == right.board)
+                assert!(left.board == right.board, "case {i} failed!");
             });
     }
 }
