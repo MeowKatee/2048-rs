@@ -1,3 +1,5 @@
+#![allow(unused_must_use)]
+
 use std::num::NonZeroU8;
 
 use rand::rngs::ThreadRng;
@@ -7,10 +9,11 @@ use rand::Rng;
 mod arrow;
 pub use arrow::Arrow;
 mod display;
+pub use display::print_board;
 
 mod tests;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, bitcode::Encode, bitcode::Decode)]
 pub struct Board {
     board: [[Option<NonZeroU8>; 4]; 4],
     score: u64,
@@ -72,6 +75,10 @@ impl Board {
         Arrow::iter()
             .into_iter()
             .all(|op| !self.clone().play_changed(op, rng))
+    }
+
+    pub fn score(&self) -> u64 {
+        self.score
     }
 }
 
@@ -156,3 +163,6 @@ impl From<[[Option<NonZeroU8>; 4]; 4]> for Board {
         }
     }
 }
+
+mod savedata;
+pub use savedata::{load, save};

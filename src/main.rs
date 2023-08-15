@@ -1,6 +1,11 @@
-use std::io::{self, Stdout};
+use std::{
+    io::{self, Stdout},
+    path::Path,
+};
 
-use _2048_rs::{Arrow, Board};
+use directories::ProjectDirs;
+
+use _2048_rs::{load, print_board, save, Arrow, Board};
 use anyhow::Result;
 use crossterm::{
     event::{Event, KeyCode, KeyEvent, KeyEventKind},
@@ -8,12 +13,13 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-use ratatui::{prelude::*, widgets::*};
+use ratatui::prelude::*;
 
 fn main() -> Result<()> {
     let mut terminal = setup_terminal()?;
-    run(&mut terminal)?;
+    let score = run(&mut terminal)?;
     restore_terminal(&mut terminal)?;
+    println!("score: {score}");
     Ok(())
 }
 
@@ -30,18 +36,44 @@ fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result
     Ok(terminal.show_cursor()?)
 }
 
-fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
+fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<u64> {
     let mut rng = rand::thread_rng();
     let mut board = Board::new(&mut rng);
+
+    // if project specified directory is not avaliable,
+    // just place saves at ./saves/saveX
+    let project_dir = ProjectDirs::from("moe", "Meowkatee", "2048-rs");
+    let data_dir = project_dir
+        .as_ref()
+        .map(|proj| proj.data_dir())
+        .unwrap_or(&Path::new("saves"));
     loop {
-        print_board(board, terminal)?;
+        print_board(board, terminal, board.is_lost(&mut rng))?;
         let input = crossterm::event::read()?;
         match input {
             Event::Key(KeyEvent {
                 code: KeyCode::Char('q' | 'Q'),
                 kind: KeyEventKind::Press,
                 ..
-            }) => break Ok(()),
+            }) => break Ok(board.score()),
+            Event::Key(KeyEvent {
+                code: KeyCode::Char('s' | 'S'),
+                kind: KeyEventKind::Release,
+                ..
+            }) => {
+                terminal.clear()?;
+                save(board, data_dir)?;
+                terminal.clear()?;
+            }
+            Event::Key(KeyEvent {
+                code: KeyCode::Char('l' | 'L'),
+                kind: KeyEventKind::Release,
+                ..
+            }) => {
+                terminal.clear()?;
+                load(&mut board, data_dir)?;
+                terminal.clear()?;
+            }
             Event::Key(KeyEvent {
                 code,
                 kind: KeyEventKind::Press,
@@ -55,20 +87,4 @@ fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
             _ => continue,
         }
     }
-}
-
-fn print_board(board: Board, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
-    terminal.draw(|frame| {
-        let table = Into::<Table<'static>>::into(board);
-        frame.render_widget(
-            table,
-            Rect {
-                x: 0,
-                y: 0,
-                width: 30,
-                height: 12,
-            },
-        )
-    })?;
-    Ok(())
 }

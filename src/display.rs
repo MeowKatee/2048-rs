@@ -1,7 +1,11 @@
+use std::io::Stdout;
 use std::num::NonZeroU8;
 
-use ratatui::widgets::*;
 use ratatui::prelude::*;
+use ratatui::widgets::block::Title;
+use ratatui::widgets::*;
+
+use anyhow::Result;
 
 use crate::Board;
 
@@ -21,6 +25,7 @@ fn color_of(state: NonZeroU8) -> Color {
 
 impl From<Board> for Table<'static> {
     fn from(value: Board) -> Self {
+        let title = Title::from(format!("Score: {}", value.score)).alignment(Alignment::Right);
         Table::new(
             value
                 .board
@@ -31,7 +36,7 @@ impl From<Board> for Table<'static> {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(format!("Score: {}", value.score))
+                .title(title)
                 .style(Style::new().bg(Color::DarkGray))
                 .padding(Padding::new(1, 1, 1, 1)),
         )
@@ -49,3 +54,40 @@ fn cell_to_widget(cell: Option<NonZeroU8>) -> Cell<'static> {
             .fg(cell.map(color_of).unwrap_or(Color::Black)),
     )
 }
+
+pub fn print_board(
+    board: Board,
+    terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+    lost: bool,
+) -> Result<()> {
+    terminal.draw(|frame| {
+        let table = Into::<Table<'static>>::into(board);
+
+        if lost {
+            let graph = Paragraph::new("You lost!").fg(Color::Red);
+            frame.render_widget(
+                graph,
+                Rect {
+                    x: 0,
+                    y: BOARD_HEIGHT + 1,
+                    width: BOARD_WIDTH,
+                    height: 1,
+                },
+            );
+        }
+
+        frame.render_widget(
+            table,
+            Rect {
+                x: 0,
+                y: 0,
+                width: BOARD_WIDTH,
+                height: BOARD_HEIGHT,
+            },
+        );
+    })?;
+    Ok(())
+}
+
+const BOARD_WIDTH: u16 = 30;
+const BOARD_HEIGHT: u16 = 12;
