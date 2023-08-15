@@ -31,7 +31,7 @@ impl From<Board> for Table<'static> {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title("2048-rs")
+                .title(format!("Score: {}", value.score))
                 .style(Style::new().bg(Color::DarkGray))
                 .padding(Padding::new(1, 1, 1, 1)),
         )

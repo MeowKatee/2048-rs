@@ -4,7 +4,6 @@ use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use rand::Rng;
 
-
 mod arrow;
 pub use arrow::Arrow;
 mod display;
@@ -14,6 +13,7 @@ mod tests;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Board {
     board: [[Option<NonZeroU8>; 4]; 4],
+    score: u64,
 }
 
 impl Board {
@@ -31,7 +31,7 @@ impl Board {
     pub fn play_changed(&mut self, direction: Arrow, rng: &mut ThreadRng) -> bool {
         let prev_state = self.clone();
         self.merge(direction);
-        let changed = prev_state != *self;
+        let changed = prev_state.board != self.board;
         if changed {
             self.gen_num(rng);
         }
@@ -79,7 +79,7 @@ impl Board {
     fn scan(
         &mut self,
         direction: Arrow,
-        op: impl Fn(&mut Option<NonZeroU8>, &mut Option<NonZeroU8>),
+        mut op: impl FnMut(&mut Option<NonZeroU8>, &mut Option<NonZeroU8>),
     ) {
         match direction {
             Arrow::Up | Arrow::Down => (0..3).for_each(|x| {
@@ -105,21 +105,24 @@ impl Board {
     fn merge(&mut self, direction: Arrow) {
         self.squash(direction);
 
+        let mut score = 0u64;
         match direction {
             Arrow::Up | Arrow::Left => self.scan(direction, |left_above, right_below| {
                 if left_above.is_some() && left_above == right_below {
                     *right_below = left_above.unwrap().checked_add(1);
                     *left_above = None;
+                    score += 2_u64.pow(right_below.unwrap().get() as _);
                 }
             }),
             Arrow::Down | Arrow::Right => self.scan(direction, |left_above, right_below| {
                 if left_above.is_some() && left_above == right_below {
                     *left_above = right_below.unwrap().checked_add(1);
                     *right_below = None;
+                    score += 2_u64.pow(left_above.unwrap().get() as _);
                 }
             }),
         }
-
+        self.score += score;
         self.squash(direction);
     }
 
@@ -147,6 +150,9 @@ impl Board {
 
 impl From<[[Option<NonZeroU8>; 4]; 4]> for Board {
     fn from(value: [[Option<NonZeroU8>; 4]; 4]) -> Self {
-        Self { board: value }
+        Self {
+            board: value,
+            score: 0,
+        }
     }
 }

@@ -145,7 +145,7 @@ mod tests {
             .map(|(left, op, right)| (Board::from(left), op, Board::from(right)))
             .for_each(|(mut left, op, right)| {
                 left.merge(op);
-                assert!(left == right)
+                assert!(left.board == right.board)
             });
     }
 }

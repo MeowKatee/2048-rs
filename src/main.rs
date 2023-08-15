@@ -1,10 +1,11 @@
-use std::{io::{self, Stdout}};
+use std::io::{self, Stdout};
 
 use _2048_rs::{Arrow, Board};
 use anyhow::Result;
 use crossterm::{
     event::{Event, KeyCode, KeyEvent, KeyEventKind},
-    terminal::{disable_raw_mode, EnterAlternateScreen, enable_raw_mode, LeaveAlternateScreen}, execute,
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
 use ratatui::{prelude::*, widgets::*};
@@ -23,9 +24,7 @@ fn setup_terminal() -> Result<Terminal<CrosstermBackend<Stdout>>> {
     Ok(Terminal::new(CrosstermBackend::new(stdout))?)
 }
 
-fn restore_terminal(
-    terminal: &mut Terminal<CrosstermBackend<Stdout>>,
-) -> Result<()> {
+fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen,)?;
     Ok(terminal.show_cursor()?)
@@ -43,7 +42,11 @@ fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
                 kind: KeyEventKind::Press,
                 ..
             }) => break Ok(()),
-            Event::Key(KeyEvent { code, kind: KeyEventKind::Press, ..}) => {
+            Event::Key(KeyEvent {
+                code,
+                kind: KeyEventKind::Press,
+                ..
+            }) => {
                 let Ok(direction) = Arrow::try_from(code) else {
                     continue;
                 };
@@ -55,9 +58,17 @@ fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
 }
 
 fn print_board(board: Board, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
-    terminal.draw(|frame|{
+    terminal.draw(|frame| {
         let table = Into::<Table<'static>>::into(board);
-        frame.render_widget(table, Rect { x: 0, y: 0, width: 30, height: 12 })
+        frame.render_widget(
+            table,
+            Rect {
+                x: 0,
+                y: 0,
+                width: 30,
+                height: 12,
+            },
+        )
     })?;
     Ok(())
 }
