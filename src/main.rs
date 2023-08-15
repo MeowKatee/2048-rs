@@ -13,11 +13,34 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
+use rand::rngs::ThreadRng;
 use ratatui::prelude::*;
 
 fn main() -> Result<()> {
     let mut terminal = setup_terminal()?;
-    let score = run(&mut terminal)?;
+
+    // if project specified directory is not avaliable,
+    // just place saves at ./saves/saveX
+    let project_dir = ProjectDirs::from("moe", "Meowkatee", "2048-rs");
+    let data_dir = project_dir
+        .as_ref()
+        .map(|proj| proj.data_dir())
+        .unwrap_or(&Path::new("saves"));
+
+    let mut rng = rand::thread_rng();
+
+    let mut current_best = std::fs::read(data_dir.join("best"))
+        .map(|b| bitcode::decode(&b).expect("invalid best score file"))
+        .unwrap_or(0);
+
+    let score = loop {
+        let (score, cont) = run(&mut terminal, data_dir, &mut rng, current_best)?;
+        current_best = current_best.max(score);
+        if !cont {
+            break score;
+        }
+    };
+    std::fs::write(data_dir.join("best"), bitcode::encode(&current_best)?)?;
     restore_terminal(&mut terminal)?;
     println!("score: {score}");
     Ok(())
@@ -36,26 +59,25 @@ fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result
     Ok(terminal.show_cursor()?)
 }
 
-fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<u64> {
-    let mut rng = rand::thread_rng();
-    let mut board = Board::new(&mut rng);
+fn run(
+    terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+    data_dir: &Path,
+    rng: &mut ThreadRng,
+    prev_best: u64,
+) -> Result<(u64, bool)> {
+    let mut board = Board::new(rng);
+    let mut new_best = prev_best;
 
-    // if project specified directory is not avaliable,
-    // just place saves at ./saves/saveX
-    let project_dir = ProjectDirs::from("moe", "Meowkatee", "2048-rs");
-    let data_dir = project_dir
-        .as_ref()
-        .map(|proj| proj.data_dir())
-        .unwrap_or(&Path::new("saves"));
     loop {
-        print_board(board, terminal, board.is_lost(&mut rng))?;
+        new_best = new_best.max(board.score());
+        print_board(board, terminal, board.is_lost(rng), prev_best, new_best)?;
         let input = crossterm::event::read()?;
         match input {
             Event::Key(KeyEvent {
                 code: KeyCode::Char('q' | 'Q'),
                 kind: KeyEventKind::Press,
                 ..
-            }) => break Ok(board.score()),
+            }) => break Ok((board.score(), false)),
             Event::Key(KeyEvent {
                 code: KeyCode::Char('s' | 'S'),
                 kind: KeyEventKind::Release,
@@ -78,9 +100,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<u64> {
                 code: KeyCode::Char('r' | 'R'),
                 kind: KeyEventKind::Release,
                 ..
-            }) => {
-                board = Board::new(&mut rng);
-            }
+            }) => break Ok((board.score(), true)),
             Event::Key(KeyEvent {
                 code,
                 kind: KeyEventKind::Press,
@@ -89,7 +109,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<u64> {
                 let Ok(direction) = Arrow::try_from(code) else {
                     continue;
                 };
-                board.play_changed(direction, &mut rng);
+                board.play_changed(direction, rng);
             }
             _ => continue,
         }

@@ -23,24 +23,27 @@ fn color_of(state: NonZeroU8) -> Color {
     }
 }
 
-impl From<Board> for Table<'static> {
-    fn from(value: Board) -> Self {
-        let title = Title::from(format!("Score: {}", value.score)).alignment(Alignment::Right);
-        Table::new(
-            value
-                .board
-                .map(|row| Row::new(row.map(cell_to_widget)).height(2)),
-        )
-        .widths(&[Constraint::Percentage(25); 4])
-        .column_spacing(0)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(title)
-                .style(Style::new().bg(Color::DarkGray))
-                .padding(Padding::new(1, 1, 1, 1)),
-        )
-    }
+fn board_to_table(board: Board, prev_best: u64) -> Table<'static> {
+    let title = Title::from(format!(
+        "{}Score: {}",
+        if board.score() > prev_best { "*" } else { "" },
+        board.score
+    ))
+    .alignment(Alignment::Right);
+    Table::new(
+        board
+            .board
+            .map(|row| Row::new(row.map(cell_to_widget)).height(2)),
+    )
+    .widths(&[Constraint::Percentage(25); 4])
+    .column_spacing(0)
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(title)
+            .style(Style::new().bg(Color::DarkGray))
+            .padding(Padding::new(1, 1, 1, 1)),
+    )
 }
 
 fn cell_to_widget(cell: Option<NonZeroU8>) -> Cell<'static> {
@@ -59,9 +62,11 @@ pub fn print_board(
     board: Board,
     terminal: &mut Terminal<CrosstermBackend<Stdout>>,
     lost: bool,
+    prev_best: u64,
+    new_best: u64,
 ) -> Result<()> {
     terminal.draw(|frame| {
-        let table = Into::<Table<'static>>::into(board);
+        let table = board_to_table(board, prev_best);
 
         if lost {
             let graph = Paragraph::new("You lost!").fg(Color::Red);
