@@ -47,7 +47,7 @@ pub fn load(board: &mut Board, data_dir: &Path) -> Result<()> {
     loop {
         if let Event::Key(KeyEvent {
             code: KeyCode::Char(slot @ '0'..='9'),
-            kind: KeyEventKind::Release,
+            kind: KeyEventKind::Press,
             ..
         }) = crossterm::event::read()?
         {
