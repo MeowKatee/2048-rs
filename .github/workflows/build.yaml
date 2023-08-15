@@ -1,29 +1,85 @@
-# .github/workflows/release.yml
+# Origin config by @Kilerd
+
+name: Build Canary Version
 
 on:
-  release:
-    types: [created]
+  - push
 
 jobs:
   release:
-    name: release ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    name: Release on ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
       matrix:
+        platform: [macos-x86_64, linux_glibc-x86_64, linux_musl-x86_64, linux_musl-i686,  windows-i686, windows-x86_64]
         include:
-          - target: x86_64-pc-windows-gnu
+        
+          - platform: macos-x86_64
+            target: x86_64-apple-darwin
+            os: macos-latest
+            bin: _2048-rs
             archive: zip
-          - target: x86_64-unknown-linux-musl
-            archive: tar.gz tar.xz tar.zst
-          - target: x86_64-apple-darwin
+
+          - platform: linux_glibc-x86_64
+            target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            bin: _2048-rs
+            archive: tar.zst
+            
+          - platform: linux_musl-x86_64
+            target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            bin: _2048-rs
+            archive: tar.zst
+        
+          - platform: linux_musl-i686
+            target: i686-unknown-linux-musl
+            os: ubuntu-latest
+            bin: _2048-rs
+            archive: tar.zst
+            
+          - platform: windows-i686
+            target: i686-pc-windows-msvc
+            os: windows-latest
+            bin: _2048-rs.exe
             archive: zip
+            
+          - platform: windows-x86_64
+            target: x86_64-pc-windows-msvc
+            os: windows-latest
+            bin: _2048-rs.exe
+            archive: zip
+            
     steps:
-      - uses: actions/checkout@master
-      - name: Compile and release
-        uses: rust-build/rust-build.action@v1.4.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - run: rustup toolchain install stable --profile minimal
+      - run: rustup target add ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Prepare assets
+        shell: bash
+        if: "!contains(matrix.os, 'windows')"
+        run: |
+          mv target/${{ matrix.target }}/release/${{ matrix.bin }} .
+          if [[ ${{ matrix.platform }} == linux* ]]
+          then
+              tar --zstd -cvf ${{ matrix.platform }}.tar.zst ${{ matrix.bin }}
+          else
+              zip -v ${{ matrix.platform }}.zip ${{ matrix.bin }}
+          fi
+      - name: Prepare assets
+        if: contains(matrix.os, 'windows')
+        shell: powershell
+        run: |
+          move target/${{ matrix.target }}/release/${{ matrix.bin }} .
+          Compress-Archive -Path  ${{ matrix.bin }} -Destination ${{ matrix.platform }}.zip
+
+      - uses: actions/upload-artifact@v3
         with:
-          RUSTTARGET: ${{ matrix.target }}
-          ARCHIVE_TYPES: ${{ matrix.archive }}
+          name: ${{ matrix.platform }}
+          path: ${{ matrix.platform }}.${{ matrix.archive }}
