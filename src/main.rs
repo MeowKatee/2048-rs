@@ -75,6 +75,13 @@ fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<u64> {
                 terminal.clear()?;
             }
             Event::Key(KeyEvent {
+                code: KeyCode::Char('r' | 'R'),
+                kind: KeyEventKind::Release,
+                ..
+            }) => {
+                board = Board::new(&mut rng);
+            }
+            Event::Key(KeyEvent {
                 code,
                 kind: KeyEventKind::Press,
                 ..
