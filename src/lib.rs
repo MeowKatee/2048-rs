@@ -1,15 +1,17 @@
 use std::num::NonZeroU8;
 
-use crossterm::event::KeyCode;
 use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use rand::Rng;
-use ratatui::style::{Color, Style};
-use ratatui::widgets::{Cell, Row, Table};
+
+
+mod arrow;
+pub use arrow::Arrow;
+mod display;
 
 mod tests;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Board {
     board: [[Option<NonZeroU8>; 4]; 4],
 }
@@ -80,7 +82,7 @@ impl Board {
         op: impl Fn(&mut Option<NonZeroU8>, &mut Option<NonZeroU8>),
     ) {
         match direction {
-            Arrow::Up => (0..3).rev().for_each(|x| {
+            Arrow::Up | Arrow::Down => (0..3).for_each(|x| {
                 (0..4).map(|y| (x, y)).for_each(|(x, y)| {
                     let (above, below) = self.board.split_at_mut(x + 1);
                     let (above, below) = (
@@ -90,25 +92,8 @@ impl Board {
                     op(above, below);
                 })
             }),
-            Arrow::Down => (0..3).for_each(|x| {
-                (0..4).map(|y| (x, y)).for_each(|(x, y)| {
-                    let (above, below) = self.board.split_at_mut(x + 1);
-                    let (above, below) = (
-                        &mut above.last_mut().unwrap()[y],
-                        &mut below.first_mut().unwrap()[y],
-                    );
-                    op(above, below);
-                })
-            }),
-            Arrow::Left => (0..4).for_each(|x| {
+            Arrow::Left | Arrow::Right => (0..4).for_each(|x| {
                 (0..3).rev().map(|y| (x, y)).for_each(|(x, y)| {
-                    let (left, right) = self.board[x].split_at_mut(y + 1);
-                    let (left, right) = (left.last_mut().unwrap(), right.first_mut().unwrap());
-                    op(left, right);
-                })
-            }),
-            Arrow::Right => (0..4).for_each(|x| {
-                (0..3).map(|y| (x, y)).for_each(|(x, y)| {
                     let (left, right) = self.board[x].split_at_mut(y + 1);
                     let (left, right) = (left.last_mut().unwrap(), right.first_mut().unwrap());
                     op(left, right);
@@ -121,28 +106,16 @@ impl Board {
         self.squash(direction);
 
         match direction {
-            Arrow::Up => self.scan(direction, |above, below| {
-                if above.is_some() && above == below {
-                    *below = above.unwrap().checked_add(1);
-                    *above = None;
+            Arrow::Up | Arrow::Left => self.scan(direction, |left_above, right_below| {
+                if left_above.is_some() && left_above == right_below {
+                    *right_below = left_above.unwrap().checked_add(1);
+                    *left_above = None;
                 }
             }),
-            Arrow::Down => self.scan(direction, |above, below| {
-                if above.is_some() && above == below {
-                    *above = below.unwrap().checked_add(1);
-                    *below = None;
-                }
-            }),
-            Arrow::Left => self.scan(direction, |left, right| {
-                if right.is_some() && left == right {
-                    *right = left.unwrap().checked_add(1);
-                    *left = None;
-                }
-            }),
-            Arrow::Right => self.scan(direction, |left, right| {
-                if right.is_some() && left == right {
-                    *left = right.unwrap().checked_add(1);
-                    *right = None;
+            Arrow::Down | Arrow::Right => self.scan(direction, |left_above, right_below| {
+                if left_above.is_some() && left_above == right_below {
+                    *left_above = right_below.unwrap().checked_add(1);
+                    *right_below = None;
                 }
             }),
         }
@@ -152,24 +125,14 @@ impl Board {
 
     fn squash_once(&mut self, direction: Arrow) {
         match direction {
-            Arrow::Up => self.scan(direction, |above, below| {
-                if above.is_none() && below.is_some() {
-                    *above = below.take();
+            Arrow::Up | Arrow::Left => self.scan(direction, |left_above, right_below| {
+                if left_above.is_none() && right_below.is_some() {
+                    *left_above = right_below.take();
                 }
             }),
-            Arrow::Down => self.scan(direction, |above, below| {
-                if below.is_none() && above.is_some() {
-                    *below = above.take();
-                }
-            }),
-            Arrow::Left => self.scan(direction, |left, right| {
-                if left.is_none() && right.is_some() {
-                    *left = right.take();
-                }
-            }),
-            Arrow::Right => self.scan(direction, |left, right| {
-                if right.is_none() && left.is_some() {
-                    *right = left.take();
+            Arrow::Down | Arrow::Right => self.scan(direction, |left_above, right_below| {
+                if right_below.is_none() && left_above.is_some() {
+                    *right_below = left_above.take();
                 }
             }),
         }
@@ -186,62 +149,4 @@ impl From<[[Option<NonZeroU8>; 4]; 4]> for Board {
     fn from(value: [[Option<NonZeroU8>; 4]; 4]) -> Self {
         Self { board: value }
     }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Arrow {
-    Up,
-    Down,
-    Left,
-    Right,
-}
-
-impl Arrow {
-    fn iter() -> [Self; 4] {
-        [Arrow::Up, Arrow::Down, Arrow::Left, Arrow::Right]
-    }
-}
-
-impl TryFrom<KeyCode> for Arrow {
-    type Error = ();
-
-    fn try_from(value: KeyCode) -> Result<Self, Self::Error> {
-        Ok(match value {
-            KeyCode::Up => Arrow::Up,
-            KeyCode::Down => Arrow::Down,
-            KeyCode::Left => Arrow::Left,
-            KeyCode::Right => Arrow::Right,
-            _ => Err(())?,
-        })
-    }
-}
-
-fn color_of(state: NonZeroU8) -> Color {
-    match state.get() % 10 {
-        0 => Color::Yellow,
-        1 => Color::Green,
-        2 => Color::Blue,
-        3 => Color::Red,
-        4 => Color::LightYellow,
-        5 => Color::LightGreen,
-        6 => Color::LightBlue,
-        7 => Color::LightRed,
-        8 => Color::Magenta,
-        9 => Color::White,
-        _ => unreachable!(),
-    }
-}
-
-impl From<Board> for Table<'static> {
-    fn from(value: Board) -> Self {
-        Table::new(value.board.map(|row| Row::new(row.map(cell_to_widget))))
-    }
-}
-
-fn cell_to_widget(cell: Option<NonZeroU8>) -> Cell<'static> {
-    Cell::from(cell.map(|i| i.to_string()).unwrap_or_default()).style(
-        Style::new()
-            .bg(Color::Black)
-            .fg(cell.map(color_of).unwrap_or(Color::Black)),
-    )
 }

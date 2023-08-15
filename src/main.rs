@@ -3,7 +3,7 @@ use std::{io::{self, Stdout}};
 use _2048_rs::{Arrow, Board};
 use anyhow::Result;
 use crossterm::{
-    event::{Event, KeyCode, KeyEvent},
+    event::{Event, KeyCode, KeyEvent, KeyEventKind},
     terminal::{disable_raw_mode, EnterAlternateScreen, enable_raw_mode, LeaveAlternateScreen}, execute,
 };
 
@@ -40,9 +40,10 @@ fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
         match input {
             Event::Key(KeyEvent {
                 code: KeyCode::Char('q' | 'Q'),
+                kind: KeyEventKind::Press,
                 ..
             }) => break Ok(()),
-            Event::Key(KeyEvent { code, .. }) => {
+            Event::Key(KeyEvent { code, kind: KeyEventKind::Press, ..}) => {
                 let Ok(direction) = Arrow::try_from(code) else {
                     continue;
                 };
@@ -56,7 +57,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
 fn print_board(board: Board, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
     terminal.draw(|frame|{
         let table = Into::<Table<'static>>::into(board);
-        frame.render_widget(table, Rect { x: 0, y: 0, width: 30, height: 30 })
+        frame.render_widget(table, Rect { x: 0, y: 0, width: 30, height: 12 })
     })?;
     Ok(())
 }
