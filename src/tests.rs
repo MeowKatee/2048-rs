@@ -139,6 +139,21 @@ mod tests {
                     [NonZeroU8::new(2), None, None, None],
                 ],
             ),
+            (
+                [
+                    [None; 4],
+                    [None; 4],
+                    [None; 4],
+                    [NonZeroU8::new(1), NonZeroU8::new(1), NonZeroU8::new(1), None],
+                ],
+                Arrow::Left,
+                [
+                    [None; 4],
+                    [None; 4],
+                    [None; 4],
+                    [NonZeroU8::new(2), NonZeroU8::new(1), None, None],
+                ],
+            ),
         ];
         pairs
             .into_iter()
