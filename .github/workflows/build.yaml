@@ -81,7 +81,7 @@ jobs:
         shell: powershell
         run: |
           move target/${{ matrix.target }}/release/${{ matrix.bin }} .
-          Compress-Archive -Path @(${{ matrix.bin }}, LICENSE) -Destination ${{ matrix.platform }}.zip
+          Compress-Archive -Path @("${{ matrix.bin }}", "LICENSE") -Destination ${{ matrix.platform }}.zip
 
       - uses: actions/upload-artifact@v3
         with:
