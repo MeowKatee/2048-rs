@@ -33,7 +33,7 @@ fn board_to_table(board: Board, prev_best: u64) -> Table<'static> {
     Table::new(
         board
             .board
-            .map(|row| Row::new(row.map(cell_to_widget)).height(2)),
+            .map(|row| Row::new(row.map(cell_to_widget)).height(CELL_HEIGHT)),
     )
     .widths(&[Constraint::Percentage(25); 4])
     .column_spacing(0)
@@ -42,15 +42,16 @@ fn board_to_table(board: Board, prev_best: u64) -> Table<'static> {
             .borders(Borders::ALL)
             .title(title)
             .style(Style::new().bg(Color::DarkGray))
-            .padding(Padding::new(1, 1, 1, 1)),
+            .padding(Padding::new(BOARD_HORIZON_PAD+1, BOARD_HORIZON_PAD, 1, 1)),
     )
 }
 
 fn cell_to_widget(cell: Option<NonZeroU8>) -> Cell<'static> {
-    let text = Text::raw(
+    let text = Text::raw(format!(
+        "\n {}",
         cell.map(|i| 2_u64.saturating_pow(i.get() as _).to_string())
             .unwrap_or_default(),
-    );
+    ));
     Cell::from(text).style(
         Style::new()
             .bg(Color::Black)
@@ -94,5 +95,7 @@ pub fn print_board(
     Ok(())
 }
 
-const BOARD_WIDTH: u16 = 30;
-const BOARD_HEIGHT: u16 = 12;
+const BOARD_HORIZON_PAD: u16 = 2;
+const BOARD_WIDTH: u16 = BOARD_HORIZON_PAD * 2 + 4 * 7;
+const CELL_HEIGHT: u16 = 3;
+const BOARD_HEIGHT: u16 = 4 + CELL_HEIGHT * 4;
