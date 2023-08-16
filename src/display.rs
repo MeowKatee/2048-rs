@@ -23,9 +23,9 @@ fn color_of(state: NonZeroU8) -> Color {
     }
 }
 
-fn board_to_table(board: Board, prev_best: u64) -> Table<'static> {
+fn board_to_table(board: Board, prev_best: u64, new_best: u64) -> Table<'static> {
     let title = Title::from(format!(
-        "{}Score: {}",
+        "{}Score: {}/{new_best}",
         if board.score() > prev_best { "*" } else { "" },
         board.score
     ))
@@ -42,7 +42,7 @@ fn board_to_table(board: Board, prev_best: u64) -> Table<'static> {
             .borders(Borders::ALL)
             .title(title)
             .style(Style::new().bg(Color::DarkGray))
-            .padding(Padding::new(BOARD_HORIZON_PAD+1, BOARD_HORIZON_PAD, 1, 1)),
+            .padding(Padding::new(BOARD_HORIZON_PAD + 1, BOARD_HORIZON_PAD, 1, 1)),
     )
 }
 
@@ -67,7 +67,7 @@ pub fn print_board(
     new_best: u64,
 ) -> Result<()> {
     terminal.draw(|frame| {
-        let table = board_to_table(board, prev_best);
+        let table = board_to_table(board, prev_best, new_best);
 
         if lost {
             let graph = Paragraph::new("You lost!").fg(Color::Red);
