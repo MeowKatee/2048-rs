@@ -72,16 +72,16 @@ jobs:
           mv target/${{ matrix.target }}/release/${{ matrix.bin }} .
           if [[ ${{ matrix.platform }} == linux* ]]
           then
-              tar --zstd -cvf ${{ matrix.platform }}.tar.zst ${{ matrix.bin }}
+              tar --zstd -cvf ${{ matrix.platform }}.tar.zst ${{ matrix.bin }} LICENSE
           else
-              zip -v ${{ matrix.platform }}.zip ${{ matrix.bin }}
+              zip -v ${{ matrix.platform }}.zip ${{ matrix.bin }} LICENSE
           fi
       - name: Prepare assets
         if: contains(matrix.os, 'windows')
         shell: powershell
         run: |
           move target/${{ matrix.target }}/release/${{ matrix.bin }} .
-          Compress-Archive -Path  ${{ matrix.bin }} -Destination ${{ matrix.platform }}.zip
+          Compress-Archive -Path @(${{ matrix.bin }}, LICENSE) -Destination ${{ matrix.platform }}.zip
 
       - uses: actions/upload-artifact@v3
         with:
